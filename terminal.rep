@@ -1,0 +1,19 @@
+// terminal.rep
+
+nat _n;                // nombre de fileres
+nat _m;                // places per filera
+nat _h;                // pisos (alçada)
+estrategia _est;       // estratègia de col·locació
+
+// Magatzem: [filera][placa][pis]
+string*** _magatzem;
+
+// Catàlegs auxiliars
+cataleg<ubicacio> _on; // matrícula -> ubicació
+cataleg<nat> _longs;   // matrícula -> longitud
+
+// Àrea d'espera
+list<string> _espera;
+
+// Comptador d'operacions de grua
+nat _ops;

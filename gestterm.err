@@ -1,0 +1,17 @@
+
+10 ubicacio Ubicacio incorrecta.
+
+20 contenidor Matricula incorrecta.
+21 contenidor Longitud incorrecta.
+
+30 cataleg Clau es l'string buit.
+31 cataleg Clau inexistent.
+
+40 terminal Numero de fileres incorrecte.
+41 terminal Numero de places incorrecte.
+42 terminal Alcada maxima incorrecta.
+43 terminal Estrategia incorrecta.
+44 terminal Matricula duplicada.
+45 terminal Matricula inexistent.
+46 terminal Ubicacio no pertany al magatzem.
+

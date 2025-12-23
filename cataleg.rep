@@ -1,0 +1,10 @@
+struct entrada {
+  string clau;
+  Valor* valor;
+  bool ocupada;
+  bool esborrada;
+};
+
+entrada* _taula;
+nat _mida;
+nat _quants;

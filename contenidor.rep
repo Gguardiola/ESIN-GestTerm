@@ -1,0 +1,4 @@
+// contenidor.rep
+
+string _matricula;
+nat _longitud;
