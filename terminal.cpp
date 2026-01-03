@@ -1,11 +1,7 @@
 #include "terminal.hpp"
 
-#include <algorithm>  // sort
-#include <vector>
-
 using std::string;
 using std::list;
-using std::vector;
 using util::nat;
 
 /* ===================== AUXILIARS ===================== */
@@ -16,6 +12,156 @@ static bool es_espera(const ubicacio& u) noexcept {
 
 static bool es_inexistent(const ubicacio& u) noexcept {
   return (u.filera() == -1 && u.placa() == -1 && u.pis() == -1);
+}
+
+static ubicacio u_espera() {
+  return ubicacio(-1, 0, 0);
+}
+
+static ubicacio u_inexistent() {
+  return ubicacio(-1, -1, -1);
+}
+
+static nat len10_from_long(nat l) {
+  return l / 10;
+}
+
+/* ===== Helpers sobre dades "planes" (NO toquen privats) ===== */
+
+static bool suport(string*** mag, nat i, nat j, nat k) {
+  if (k == 0) return true;
+  return !mag[i][j][k - 1].empty();
+}
+
+static bool cabe(string*** mag, nat m, nat h, nat i, nat j, nat k, nat len10) {
+  if (j + len10 > m) return false;
+
+  nat x = 0;
+  while (x < len10) {
+    if (!mag[i][j + x][k].empty()) return false;
+    if (!suport(mag, i, j + x, k)) return false;
+    ++x;
+  }
+  return true;
+}
+
+static bool first_fit(string*** mag, nat n, nat m, nat h, nat len10,
+                      nat& oi, nat& oj, nat& ok) {
+  nat i = 0;
+  while (i < n) {
+    nat j = 0;
+    while (j < m) {
+      nat k = 0;
+      while (k < h) {
+        if (cabe(mag, m, h, i, j, k, len10)) {
+          oi = i; oj = j; ok = k;
+          return true;
+        }
+        ++k;
+      }
+      ++j;
+    }
+    ++i;
+  }
+  return false;
+}
+
+static void write_footprint(string*** mag, nat i, nat j, nat k, nat len10, const string& mat) {
+  nat x = 0;
+  while (x < len10) {
+    mag[i][j + x][k] = mat;
+    ++x;
+  }
+}
+
+static void clear_footprint(string*** mag, nat i, nat j, nat k, nat len10) {
+  nat x = 0;
+  while (x < len10) {
+    mag[i][j + x][k].clear();
+    ++x;
+  }
+}
+
+static bool te_alguna_cosa_a_sobre(string*** mag, nat h, nat i, nat j, nat k, nat len10) {
+  if (k + 1 >= h) return false;
+
+  nat x = 0;
+  while (x < len10) {
+    nat kk = k + 1;
+    while (kk < h) {
+      if (!mag[i][j + x][kk].empty()) return true;
+      ++kk;
+    }
+    ++x;
+  }
+  return false;
+}
+
+/* ===================== PROCESSAR ESPERA (helper) ===================== */
+
+static void processa_espera_impl(terminal::estrategia est,
+                                 list<string>& espera,
+                                 cataleg<nat>& longs,
+                                 cataleg<ubicacio>& on,
+                                 string*** mag,
+                                 nat n, nat m, nat h,
+                                 nat& ops)
+{
+  if (est == terminal::estrategia::FIRST_FIT) {
+    bool mogut = true;
+    while (mogut) {
+      mogut = false;
+
+      auto it = espera.end();
+      while (it != espera.begin()) {
+        --it;
+        const string mat = *it;
+
+        if (!longs.existeix(mat)) continue;
+        nat L = longs[mat];
+        if (L == 0) continue; // marcat com inexistent
+        nat need = len10_from_long(L);
+
+        nat pi = 0, pj = 0, pk = 0;
+        if (first_fit(mag, n, m, h, need, pi, pj, pk)) {
+          write_footprint(mag, pi, pj, pk, need, mat);
+          on.assig(mat, ubicacio((int)pi, (int)pj, (int)pk));
+
+          it = espera.erase(it);
+          ++ops;      // espera -> magatzem
+          mogut = true;
+          break;      // recomençar des del final
+        }
+      }
+    }
+  }
+  else {
+    bool mogut = true;
+    while (mogut) {
+      mogut = false;
+
+      auto it = espera.begin();
+      while (it != espera.end()) {
+        const string mat = *it;
+
+        if (!longs.existeix(mat)) { ++it; continue; }
+        nat L = longs[mat];
+        if (L == 0) { ++it; continue; }
+        nat need = len10_from_long(L);
+
+        nat pi = 0, pj = 0, pk = 0;
+        if (first_fit(mag, n, m, h, need, pi, pj, pk)) {
+          write_footprint(mag, pi, pj, pk, need, mat);
+          on.assig(mat, ubicacio((int)pi, (int)pj, (int)pk));
+
+          it = espera.erase(it);
+          ++ops;
+          mogut = true;
+          break;
+        } else ++it;
+      }
+    }
+  }
 }
 
 /* ===================== CONSTRUCTOR / 3 GRANS ===================== */
@@ -34,12 +180,20 @@ terminal::terminal(nat n, nat m, nat h, estrategia st)
   if (st != estrategia::FIRST_FIT && st != estrategia::LLIURE) throw error(EstrategiaIncorr);
 
   _magatzem = new string**[_n];
-  for (nat i = 0; i < _n; ++i) {
+  nat i = 0;
+  while (i < _n) {
     _magatzem[i] = new string*[_m];
-    for (nat j = 0; j < _m; ++j) {
+    nat j = 0;
+    while (j < _m) {
       _magatzem[i][j] = new string[_h];
-      for (nat k = 0; k < _h; ++k) _magatzem[i][j][k].clear();
+      nat k = 0;
+      while (k < _h) {
+        _magatzem[i][j][k].clear();
+        ++k;
+      }
+      ++j;
     }
+    ++i;
   }
 }
 
@@ -52,24 +206,39 @@ terminal::terminal(const terminal& b)
     _ops(b._ops)
 {
   _magatzem = new string**[_n];
-  for (nat i = 0; i < _n; ++i) {
+  nat i = 0;
+  while (i < _n) {
     _magatzem[i] = new string*[_m];
-    for (nat j = 0; j < _m; ++j) {
+    nat j = 0;
+    while (j < _m) {
       _magatzem[i][j] = new string[_h];
-      for (nat k = 0; k < _h; ++k) _magatzem[i][j][k] = b._magatzem[i][j][k];
+      nat k = 0;
+      while (k < _h) {
+        _magatzem[i][j][k] = b._magatzem[i][j][k];
+        ++k;
+      }
+      ++j;
     }
+    ++i;
   }
 }
 
 terminal& terminal::operator=(const terminal& b) {
   if (this == &b) return *this;
 
-  // alliberar magatzem actual
-  for (nat i = 0; i < _n; ++i) {
-    for (nat j = 0; j < _m; ++j) delete[] _magatzem[i][j];
-    delete[] _magatzem[i];
+  if (_magatzem != nullptr) {
+    nat i = 0;
+    while (i < _n) {
+      nat j = 0;
+      while (j < _m) {
+        delete[] _magatzem[i][j];
+        ++j;
+      }
+      delete[] _magatzem[i];
+      ++i;
+    }
+    delete[] _magatzem;
   }
-  delete[] _magatzem;
 
   _n = b._n; _m = b._m; _h = b._h; _est = b._est;
   _on = b._on;
@@ -78,12 +247,20 @@ terminal& terminal::operator=(const terminal& b) {
   _ops = b._ops;
 
   _magatzem = new string**[_n];
-  for (nat i = 0; i < _n; ++i) {
+  nat i = 0;
+  while (i < _n) {
     _magatzem[i] = new string*[_m];
-    for (nat j = 0; j < _m; ++j) {
+    nat j = 0;
+    while (j < _m) {
       _magatzem[i][j] = new string[_h];
-      for (nat k = 0; k < _h; ++k) _magatzem[i][j][k] = b._magatzem[i][j][k];
+      nat k = 0;
+      while (k < _h) {
+        _magatzem[i][j][k] = b._magatzem[i][j][k];
+        ++k;
+      }
+      ++j;
     }
+    ++i;
   }
 
   return *this;
@@ -91,9 +268,15 @@ terminal& terminal::operator=(const terminal& b) {
 
 terminal::~terminal() noexcept {
   if (_magatzem != nullptr) {
-    for (nat i = 0; i < _n; ++i) {
-      for (nat j = 0; j < _m; ++j) delete[] _magatzem[i][j];
+    nat i = 0;
+    while (i < _n) {
+      nat j = 0;
+      while (j < _m) {
+        delete[] _magatzem[i][j];
+        ++j;
+      }
       delete[] _magatzem[i];
+      ++i;
     }
     delete[] _magatzem;
   }
@@ -110,13 +293,23 @@ nat terminal::ops_grua() const noexcept { return _ops; }
 /* ===================== CONSULTES ===================== */
 
 ubicacio terminal::on(const string &m) const noexcept {
-  if (_on.existeix(m)) return _on[m];
-  return ubicacio(-1, -1, -1); // inexistent
+  if (_on.existeix(m)) {
+    ubicacio u = _on[m];
+    if (es_inexistent(u)) return u_inexistent();
+    return u;
+  }
+  return u_inexistent();
 }
 
 nat terminal::longitud(const string &m) const {
+  if (!_on.existeix(m)) throw error(MatriculaInexistent);
+  ubicacio u = _on[m];
+  if (es_inexistent(u)) throw error(MatriculaInexistent);
+
   if (!_longs.existeix(m)) throw error(MatriculaInexistent);
-  return _longs[m];
+  nat L = _longs[m];
+  if (L == 0) throw error(MatriculaInexistent);
+  return L;
 }
 
 void terminal::contenidor_ocupa(const ubicacio &u, string &m) const {
@@ -133,152 +326,244 @@ void terminal::contenidor_ocupa(const ubicacio &u, string &m) const {
 
 void terminal::area_espera(list<string> &l) const noexcept {
   l = _espera;
-
-  // ordenar alfabèticament (sense usar altres contenidors prohibits: aquí ja tenim list)
-  // però list::sort existeix i és perfecte.
   l.sort();
 }
 
 nat terminal::fragmentacio() const noexcept {
-  // Comptem places "aïllades": segments d'espai buit d'amplada 1 (en una mateixa filera i pis)
   nat frag = 0;
 
-  for (nat i = 0; i < _n; ++i) {
-    for (nat k = 0; k < _h; ++k) {
+  nat i = 0;
+  while (i < _n) {
+    nat k = 0;
+    while (k < _h) {
       nat j = 0;
       while (j < _m) {
-        if (_magatzem[i][j][k].empty()) {
-          nat start = j;
-          while (j < _m && _magatzem[i][j][k].empty()) ++j;
-          nat len = j - start;
-          if (len == 1) ++frag;
-        } else {
+        while (j < _m) {
+          if (_magatzem[i][j][k].empty() && suport(_magatzem, i, j, k)) break;
           ++j;
         }
+        if (j >= _m) break;
+
+        nat start = j;
+        while (j < _m && _magatzem[i][j][k].empty() && suport(_magatzem, i, j, k)) ++j;
+        nat len = j - start;
+
+        if (len == 1) ++frag;
       }
+      ++k;
     }
+    ++i;
   }
 
   return frag;
 }
 
-/* ===================== FIRST_FIT (INSERIR / RETIRAR) ===================== */
+/* ===================== INSERIR ===================== */
 
 void terminal::insereix_contenidor(const contenidor &c) {
   const string m = c.matricula();
   const nat l = c.longitud();
-  const nat need = l / 10;
+  const nat need = len10_from_long(l);
 
-  if (_on.existeix(m)) throw error(MatriculaDuplicada);
-
-  // Funció local per trobar FIRST_FIT
-  auto try_place = [&](const string& mat, nat len10, ubicacio& out) -> bool {
-    for (nat i = 0; i < _n; ++i) {
-      for (nat k = 0; k < _h; ++k) {
-        nat j = 0;
-        while (j < _m) {
-          if (!_magatzem[i][j][k].empty()) { ++j; continue; }
-
-          nat start = j;
-          while (j < _m && _magatzem[i][j][k].empty()) ++j;
-          nat free_len = j - start;
-
-          if (free_len >= len10) {
-            out = ubicacio((int)i, (int)start, (int)k);
-            return true;
-          }
-        }
-      }
-    }
-    return false;
-  };
-
-  ubicacio pos(-1, -1, -1);
-  if (try_place(m, need, pos)) {
-    // Escriure matrícula a totes les places ocupades
-    nat i = (nat)pos.filera();
-    nat j = (nat)pos.placa();
-    nat k = (nat)pos.pis();
-    for (nat x = 0; x < need; ++x) _magatzem[i][j + x][k] = m;
-
-    _on.assig(m, pos);
-    _longs.assig(m, l);
-    ++_ops;
-    return;
+  // duplicada només si existeix i NO està marcada com inexistent
+  if (_on.existeix(m)) {
+    ubicacio u = _on[m];
+    if (!es_inexistent(u)) throw error(MatriculaDuplicada);
   }
 
-  // No cap: a l'àrea d'espera
-  _espera.push_back(m);
-  _on.assig(m, ubicacio(-1, 0, 0)); // espera
-  _longs.assig(m, l);
-  ++_ops;
+  nat pi = 0, pj = 0, pk = 0;
+  if (first_fit(_magatzem, _n, _m, _h, need, pi, pj, pk)) {
+    write_footprint(_magatzem, pi, pj, pk, need, m);
+    _on.assig(m, ubicacio((int)pi, (int)pj, (int)pk));
+    _longs.assig(m, l);
+
+    ++_ops; // inserir directament al magatzem
+    processa_espera_impl(_est, _espera, _longs, _on, _magatzem, _n, _m, _h, _ops);
+  } else {
+    _espera.push_back(m);
+    _on.assig(m, u_espera());
+    _longs.assig(m, l);
+    // NO ops
+  }
 }
+
+/* ===================== RETIRAR ===================== */
 
 void terminal::retira_contenidor(const string &m) {
   if (!_on.existeix(m)) throw error(MatriculaInexistent);
-
   ubicacio u = _on[m];
-  nat l = _longs[m];
-  nat need = l / 10;
+  if (es_inexistent(u)) throw error(MatriculaInexistent);
 
-  // 1) Si està a espera: treure de la llista
+  // Si està a espera: eliminar (0 ops), però NO borrem del cataleg: marquem inexistent
   if (es_espera(u)) {
-    for (auto it = _espera.begin(); it != _espera.end(); ++it) {
+    auto it = _espera.begin();
+    while (it != _espera.end()) {
       if (*it == m) { _espera.erase(it); break; }
+      ++it;
     }
-  }
-  // 2) Si està al magatzem: buidar
-  else if (!es_inexistent(u)) {
-    nat i = (nat)u.filera();
-    nat j = (nat)u.placa();
-    nat k = (nat)u.pis();
-    for (nat x = 0; x < need; ++x) _magatzem[i][j + x][k].clear();
+    _on.assig(m, u_inexistent());
+    _longs.assig(m, 0);
+    return;
   }
 
-  _on.elimina(m);
-  _longs.elimina(m);
-  ++_ops;
+  // està al magatzem
+  nat li = (nat)u.filera();
+  nat lj = (nat)u.placa();
+  nat lk = (nat)u.pis();
 
-  // 3) Intentar recol·locar des de l'àrea d'espera amb FIRST_FIT
-  auto try_place = [&](const string& mat, nat len10, ubicacio& out) -> bool {
-    for (nat i = 0; i < _n; ++i) {
-      for (nat k = 0; k < _h; ++k) {
-        nat j = 0;
-        while (j < _m) {
-          if (!_magatzem[i][j][k].empty()) { ++j; continue; }
+  nat Lm = _longs[m];
+  if (Lm == 0) throw error(MatriculaInexistent);
+  nat need = len10_from_long(Lm);
 
-          nat start = j;
-          while (j < _m && _magatzem[i][j][k].empty()) ++j;
-          nat free_len = j - start;
+  // Cols afectades (cierre)
+  bool* col = new bool[_m];
+  nat jj = 0;
+  while (jj < _m) { col[jj] = false; ++jj; }
 
-          if (free_len >= len10) {
-            out = ubicacio((int)i, (int)start, (int)k);
-            return true;
-          }
-        }
-      }
+  nat x = 0;
+  while (x < need) { col[lj + x] = true; ++x; }
+
+  // Llista de matrícules a moure
+  nat maxmv = _on.quants();
+  if (maxmv == 0) maxmv = 1;
+  string* mv = new string[maxmv];
+  nat mvn = 0;
+
+  auto in_mv = [&](const string& s) -> bool {
+    nat t = 0;
+    while (t < mvn) {
+      if (mv[t] == s) return true;
+      ++t;
     }
     return false;
   };
 
-  auto it = _espera.begin();
-  while (it != _espera.end()) {
-    const string me = *it;
-    nat le = _longs[me];
-    nat neede = le / 10;
+  bool changed = true;
+  while (changed) {
+    changed = false;
 
-    ubicacio pos(-1, -1, -1);
-    if (try_place(me, neede, pos)) {
-      nat i = (nat)pos.filera();
-      nat j = (nat)pos.placa();
-      nat k = (nat)pos.pis();
-      for (nat x = 0; x < neede; ++x) _magatzem[i][j + x][k] = me;
+    nat j = 0;
+    while (j < _m) {
+      if (!col[j]) { ++j; continue; }
 
-      _on.assig(me, pos);
-      it = _espera.erase(it);
-      ++_ops; // moviment de grua per recol·locar
-    } else {
-      ++it;
+      nat kk = lk + 1;
+      while (kk < _h) {
+        const string top = _magatzem[li][j][kk];
+        if (!top.empty() && top != m) {
+          if (!in_mv(top)) {
+            mv[mvn++] = top;
+
+            if (_on.existeix(top)) {
+              ubicacio ut = _on[top];
+              if (!es_espera(ut) && !es_inexistent(ut)) {
+                nat Lt = _longs[top];
+                if (Lt != 0) {
+                  nat wt = len10_from_long(Lt);
+                  nat tj = (nat)ut.placa();
+                  nat xx = 0;
+                  while (xx < wt && tj + xx < _m) {
+                    if (!col[tj + xx]) { col[tj + xx] = true; changed = true; }
+                    ++xx;
+                  }
+                }
+              }
+            }
+          }
+        }
+        ++kk;
+      }
+
+      ++j;
     }
   }
+
+  auto te_sobre = [&](const string& mat) -> bool {
+    ubicacio ut = _on[mat];
+    nat Lt = _longs[mat];
+    nat wt = len10_from_long(Lt);
+    nat i0 = (nat)ut.filera();
+    nat j0 = (nat)ut.placa();
+    nat k0 = (nat)ut.pis();
+    return te_alguna_cosa_a_sobre(_magatzem, _h, i0, j0, k0, wt);
+  };
+
+  auto move_to_espera = [&](const string& mat) {
+    ubicacio ut = _on[mat];
+    nat Lt = _longs[mat];
+    nat wt = len10_from_long(Lt);
+
+    nat i0 = (nat)ut.filera();
+    nat j0 = (nat)ut.placa();
+    nat k0 = (nat)ut.pis();
+
+    clear_footprint(_magatzem, i0, j0, k0, wt);
+    _espera.push_back(mat);
+    _on.assig(mat, u_espera());
+
+    ++_ops; // magatzem -> espera
+  };
+
+  // Moure segons: lliure amb ubicació mínima
+  while (mvn > 0) {
+    int best = -1;
+    ubicacio bestu = u_inexistent();
+
+    nat idx = 0;
+    while (idx < mvn) {
+      const string mat = mv[idx];
+
+      if (!_on.existeix(mat)) { mv[idx] = mv[mvn - 1]; --mvn; continue; }
+      ubicacio ut = _on[mat];
+      if (es_espera(ut) || es_inexistent(ut)) { mv[idx] = mv[mvn - 1]; --mvn; continue; }
+
+      if (!te_sobre(mat)) {
+        if (best == -1 || ut < bestu) {
+          best = (int)idx;
+          bestu = ut;
+        }
+      }
+      ++idx;
+    }
+
+    // fallback (no hauria)
+    if (best == -1) {
+      nat idx2 = 0;
+      while (idx2 < mvn) {
+        const string mat = mv[idx2];
+        if (_on.existeix(mat)) {
+          ubicacio ut = _on[mat];
+          if (!es_espera(ut) && !es_inexistent(ut)) {
+            if (best == -1 || ut < bestu) {
+              best = (int)idx2;
+              bestu = ut;
+            }
+          }
+        }
+        ++idx2;
+      }
+    }
+
+    if (best == -1) break;
+
+    string mat = mv[(nat)best];
+    mv[(nat)best] = mv[mvn - 1];
+    --mvn;
+
+    if (_on.existeix(mat) && !es_espera(_on[mat]) && !es_inexistent(_on[mat])) {
+      move_to_espera(mat);
+    }
+  }
+
+  // Retirar objectiu del magatzem
+  clear_footprint(_magatzem, li, lj, lk, need);
+  ++_ops; // retirar directament del magatzem
+
+  // NO eliminem: marquem com inexistent
+  _on.assig(m, u_inexistent());
+  _longs.assig(m, 0);
+
+  delete[] mv;
+  delete[] col;
+
+  processa_espera_impl(_est, _espera, _longs, _on, _magatzem, _n, _m, _h, _ops);
 }

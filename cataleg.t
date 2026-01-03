@@ -52,11 +52,8 @@ cataleg<Valor>::cataleg(const cataleg &c)
 template <typename Valor>
 cataleg<Valor>& cataleg<Valor>::operator=(const cataleg &c) {
     if (this != &c) {
-        // Alliberar memòria actual
         for (nat i = 0; i < _mida; ++i) {
-            if (_taula[i].ocupada) {
-                delete _taula[i].valor;
-            }
+            if (_taula[i].ocupada) delete _taula[i].valor;
         }
         delete[] _taula;
 
@@ -68,11 +65,8 @@ cataleg<Valor>& cataleg<Valor>::operator=(const cataleg &c) {
             _taula[i].ocupada = c._taula[i].ocupada;
             _taula[i].esborrada = c._taula[i].esborrada;
             _taula[i].clau = c._taula[i].clau;
-            if (c._taula[i].ocupada) {
-                _taula[i].valor = new Valor(*c._taula[i].valor);
-            } else {
-                _taula[i].valor = nullptr;
-            }
+            if (c._taula[i].ocupada) _taula[i].valor = new Valor(*c._taula[i].valor);
+            else _taula[i].valor = nullptr;
         }
     }
     return *this;
@@ -81,9 +75,7 @@ cataleg<Valor>& cataleg<Valor>::operator=(const cataleg &c) {
 template <typename Valor>
 cataleg<Valor>::~cataleg() noexcept {
     for (nat i = 0; i < _mida; ++i) {
-        if (_taula[i].ocupada) {
-            delete _taula[i].valor;
-        }
+        if (_taula[i].ocupada) delete _taula[i].valor;
     }
     delete[] _taula;
 }
@@ -94,8 +86,51 @@ cataleg<Valor>::~cataleg() noexcept {
 
 template <typename Valor>
 void cataleg<Valor>::assig(const string &k, const Valor &v) {
-    if (k.empty()) {
-        throw error(ClauStringBuit);
+    if (k.empty()) throw error(ClauStringBuit);
+
+    // ---------- Rehash si ens acostem a ple (load factor ~0.7) ----------
+    if ((_quants + 1) * 10 >= _mida * 7) {
+        nat nova_mida = _mida * 2 + 1;
+
+        entrada* vella = _taula;
+        nat mida_vella = _mida;
+
+        entrada* nova = new entrada[nova_mida];
+        for (nat i = 0; i < nova_mida; ++i) {
+            nova[i].ocupada = false;
+            nova[i].esborrada = false;
+            nova[i].valor = nullptr;
+        }
+
+        // reinsert movent els punters (sense copiar Valor)
+        for (nat i = 0; i < mida_vella; ++i) {
+            if (!vella[i].ocupada) continue;
+
+            nat h = hash_string(vella[i].clau, nova_mida);
+            nat j = 0;
+            while (j < nova_mida) {
+                nat pos = (h + j) % nova_mida;
+                if (!nova[pos].ocupada) {
+                    nova[pos].clau = vella[i].clau;
+                    nova[pos].valor = vella[i].valor;   // MOVEM el punter
+                    nova[pos].ocupada = true;
+                    nova[pos].esborrada = false;
+                    vella[i].valor = nullptr;
+                    break;
+                }
+                ++j;
+            }
+        }
+
+        // alliberem taula vella (els punters ja s'han mogut / posat a nullptr)
+        for (nat i = 0; i < mida_vella; ++i) {
+            if (vella[i].ocupada && vella[i].valor != nullptr) delete vella[i].valor;
+        }
+        delete[] vella;
+
+        _taula = nova;
+        _mida = nova_mida;
+        // _quants es manté igual
     }
 
     nat h = hash_string(k, _mida);
@@ -110,9 +145,9 @@ void cataleg<Valor>::assig(const string &k, const Valor &v) {
                 return;
             }
         } else {
-            if (_taula[pos].esborrada && first_deleted == _mida) {
-                first_deleted = pos;
-            } else if (!_taula[pos].esborrada) {
+            if (_taula[pos].esborrada) {
+                if (first_deleted == _mida) first_deleted = pos;
+            } else {
                 nat ins = (first_deleted != _mida) ? first_deleted : pos;
 
                 _taula[ins].clau = k;
@@ -124,22 +159,35 @@ void cataleg<Valor>::assig(const string &k, const Valor &v) {
             }
         }
     }
+
+    // Si hem recorregut tota la taula: pot ser que només hi hagi tombstones
+    if (first_deleted != _mida) {
+        _taula[first_deleted].clau = k;
+        _taula[first_deleted].valor = new Valor(v);
+        _taula[first_deleted].ocupada = true;
+        _taula[first_deleted].esborrada = false;
+        ++_quants;
+        return;
+    }
+
+    // Si arribem aquí, està realment plena: fem rehash i reintentem
+    // (això no hauria de passar gaire amb el rehash anterior, però ho deixa blindat)
+    nat guard = _mida;
+    _mida = guard; // no canviem res aquí
+    assig(k, v);
 }
 
 template <typename Valor>
 void cataleg<Valor>::elimina(const string &k) {
-    if (k.empty()) {
-        throw error(ClauInexistent);
-    }
+    if (k.empty()) throw error(ClauStringBuit);
 
     nat h = hash_string(k, _mida);
 
     for (nat i = 0; i < _mida; ++i) {
         nat pos = (h + i) % _mida;
 
-        if (!_taula[pos].ocupada && !_taula[pos].esborrada) {
-            break;
-        }
+        if (!_taula[pos].ocupada && !_taula[pos].esborrada) break;
+
         if (_taula[pos].ocupada && _taula[pos].clau == k) {
             delete _taula[pos].valor;
             _taula[pos].valor = nullptr;
@@ -161,33 +209,23 @@ bool cataleg<Valor>::existeix(const string &k) const noexcept {
     for (nat i = 0; i < _mida; ++i) {
         nat pos = (h + i) % _mida;
 
-        if (!_taula[pos].ocupada && !_taula[pos].esborrada) {
-            return false;
-        }
-        if (_taula[pos].ocupada && _taula[pos].clau == k) {
-            return true;
-        }
+        if (!_taula[pos].ocupada && !_taula[pos].esborrada) return false;
+        if (_taula[pos].ocupada && _taula[pos].clau == k) return true;
     }
     return false;
 }
 
 template <typename Valor>
 Valor cataleg<Valor>::operator[](const string &k) const {
-    if (k.empty()) {
-        throw error(ClauInexistent);
-    }
+    if (k.empty()) throw error(ClauStringBuit);
 
     nat h = hash_string(k, _mida);
 
     for (nat i = 0; i < _mida; ++i) {
         nat pos = (h + i) % _mida;
 
-        if (!_taula[pos].ocupada && !_taula[pos].esborrada) {
-            break;
-        }
-        if (_taula[pos].ocupada && _taula[pos].clau == k) {
-            return *_taula[pos].valor;
-        }
+        if (!_taula[pos].ocupada && !_taula[pos].esborrada) break;
+        if (_taula[pos].ocupada && _taula[pos].clau == k) return *_taula[pos].valor;
     }
     throw error(ClauInexistent);
 }
