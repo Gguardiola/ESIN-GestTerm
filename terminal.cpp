@@ -45,6 +45,75 @@ static bool cabe(string*** mag, nat m, nat h, nat i, nat j, nat k, nat len10) {
   return true;
 }
 
+static bool lliure_fit(string*** mag, nat n, nat m, nat h, nat len10, nat& oi, nat& oj, nat& ok)
+{
+// ESTRATEGIA LLIURE
+// cost: O(m*m*h)
+// Pre: 
+//  - mag representa un magatzem vàlid de dimensions n × m × h.
+//  - len10 > 0.
+//  - oi, oj, ok són variables on es poden escriure coordenades.
+// Post:
+//  - Si existeix en el magatzem un conjunt de len10 posicions consecutives
+//    lliures, en una mateixa filera i pis, i totes amb suport adequat,
+//    la funció retorna true i (oi, oj, ok) conté la ubicació inicial d’un
+//    d’aquests conjunts segons l’estratègia LLIURE.
+//  - L’estratègia LLIURE tria el conjunt lliure que deixa el mínim espai
+//    lliure sobrant (best-fit); en cas d’empat, es tria el que està situat
+//    en un pis més baix, després en una filera menor i, finalment, en una
+//    posició més a l’esquerra.
+//  - Si no existeix cap conjunt vàlid de len10 posicions, la funció retorna
+//    false i el valor de (oi, oj, ok) no està definit.
+
+  bool found = false;
+  nat best_waste = 0;
+
+  nat i = 0;
+  while (i < n) {
+    nat k = 0;
+    while (k < h) {
+      nat j = 0;
+      while (j < m) {
+        if (cabe(mag, m, h, i, j, k, len10)) {
+          nat size = 0;
+          while (j + size < m &&
+                 mag[i][j + size][k].empty() &&
+                 suport(mag, i, j + size, k))
+          {
+            ++size;
+          }
+
+          if (size >= len10) {
+            nat waste = size - len10;
+
+            if (!found ||
+                waste < best_waste ||
+                (waste == best_waste &&
+                 (k < ok ||
+                 (k == ok && (i < oi || (i == oi && j < oj))))))
+            {
+              found = true;
+              best_waste = waste;
+              oi = i;
+              oj = j;
+              ok = k;
+            }
+          }
+
+          j += size;
+        } else {
+          ++j;
+        }
+      }
+      ++k;
+    }
+    ++i;
+  }
+
+  return found;
+}
+
+
 static bool first_fit(string*** mag, nat n, nat m, nat h, nat len10,
                       nat& oi, nat& oj, nat& ok) {
   nat i = 0;
@@ -150,7 +219,7 @@ static void processa_espera_impl(terminal::estrategia est,
         nat need = len10_from_long(L);
 
         nat pi = 0, pj = 0, pk = 0;
-        if (first_fit(mag, n, m, h, need, pi, pj, pk)) {
+        if (lliure_fit(mag, n, m, h, need, pi, pj, pk)) {
           write_footprint(mag, pi, pj, pk, need, mat);
           on.assig(mat, ubicacio((int)pi, (int)pj, (int)pk));
 
@@ -365,19 +434,25 @@ void terminal::insereix_contenidor(const contenidor &c) {
   const nat l = c.longitud();
   const nat need = len10_from_long(l);
 
-  // duplicada només si existeix i NO està marcada com inexistent
   if (_on.existeix(m)) {
     ubicacio u = _on[m];
     if (!es_inexistent(u)) throw error(MatriculaDuplicada);
   }
 
   nat pi = 0, pj = 0, pk = 0;
-  if (first_fit(_magatzem, _n, _m, _h, need, pi, pj, pk)) {
+
+  bool ok;
+  if (_est == estrategia::FIRST_FIT)
+    ok = first_fit(_magatzem, _n, _m, _h, need, pi, pj, pk);
+  else
+    ok = lliure_fit(_magatzem, _n, _m, _h, need, pi, pj, pk);
+
+  if (ok) {
     write_footprint(_magatzem, pi, pj, pk, need, m);
     _on.assig(m, ubicacio((int)pi, (int)pj, (int)pk));
     _longs.assig(m, l);
 
-    ++_ops; // inserir directament al magatzem
+    ++_ops;
     processa_espera_impl(_est, _espera, _longs, _on, _magatzem, _n, _m, _h, _ops);
   } else {
     _espera.push_back(m);
