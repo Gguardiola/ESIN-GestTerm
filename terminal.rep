@@ -1,4 +1,36 @@
-// terminal.rep
+// Representació de la classe terminal
+//
+// La terminal es representa mitjançant:
+//
+//  - _magatzem: una matriu tridimensional [filera][placa][pis] de strings
+//    que conté, a cada posició, la matrícula del contenidor que ocupa
+//    aquella plaça o bé la cadena buida si està lliure.
+//
+//  - _on: un catàleg que associa cada matrícula amb la seva ubicació
+//    (magatzem, àrea d’espera o inexistent).
+//
+//  - _longs: un catàleg que associa cada matrícula amb la seva longitud.
+//
+//  - _espera: una llista de matrícules que es troben a l’àrea d’espera.
+//
+//  - _ops: comptador del nombre d’operacions de grua.
+//
+// Aquesta representació permet:
+//  - Accedir en temps constant a l’estat físic del magatzem.
+//  - Consultar ràpidament on es troba un contenidor mitjançant _on.
+//  - Separar clarament l’estat físic (magatzem) de l’estat lògic (catàlegs).
+//
+// Alternatives:
+//  - Usar només el catàleg i no una matriu física: obligaria a recalcular
+//    ocupacions i suport en cada operació, molt més costós.
+//  - Usar una estructura dispersa per al magatzem: empitjoraria el rendiment
+//    en recorreguts sistemàtics (fragmentació, cerca de forats).
+//
+// Cost en espai:
+//  - Magatzem: O(n*m*h)
+//  - Catàlegs: O(nombre de contenidors)
+//  - Àrea d’espera: O(nombre de contenidors en espera)
+
 
 nat _n;                // nombre de fileres
 nat _m;                // places per filera
