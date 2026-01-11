@@ -86,6 +86,18 @@ cataleg<Valor>::~cataleg() noexcept {
 
 template <typename Valor>
 void cataleg<Valor>::assig(const string &k, const Valor &v) {
+/*
+Pre:
+  k no és una cadena buida.
+Post:
+  Si k ja existeix, el seu valor és substituït per v.
+  Si no existeix, s’insereix (k,v) al catàleg.
+  Es fa rehash si el factor de càrrega és massa alt.
+Cost:
+  Cost mitjà: O(1)
+  Pitjor cas (rehash): O(n)
+*/
+
     if (k.empty()) throw error(ClauStringBuit);
 
     // ---------- Rehash si ens acostem a ple (load factor ~0.7) ----------
@@ -179,6 +191,16 @@ void cataleg<Valor>::assig(const string &k, const Valor &v) {
 
 template <typename Valor>
 void cataleg<Valor>::elimina(const string &k) {
+/*
+Pre:
+  k no és buida i existeix al catàleg.
+Post:
+  Elimina l’entrada associada a k.
+Cost:
+  Cost mitjà: O(1)
+  Pitjor cas: O(n)
+*/
+
     if (k.empty()) throw error(ClauStringBuit);
 
     nat h = hash_string(k, _mida);
@@ -202,6 +224,17 @@ void cataleg<Valor>::elimina(const string &k) {
 
 template <typename Valor>
 bool cataleg<Valor>::existeix(const string &k) const noexcept {
+/*
+Pre:
+  Cert
+Post:
+  Retorna cert si i només si la clau k és present al catàleg.
+Cost:
+  Cost mitjà: O(1)
+  Pitjor cas: O(n)
+*/
+
+
     if (k.empty()) return false;
 
     nat h = hash_string(k, _mida);
@@ -217,6 +250,16 @@ bool cataleg<Valor>::existeix(const string &k) const noexcept {
 
 template <typename Valor>
 Valor cataleg<Valor>::operator[](const string &k) const {
+/*
+Pre:
+  k existeix al catàleg.
+Post:
+  Retorna una còpia del valor associat a k.
+Cost:
+  Cost mitjà: O(1)
+  Pitjor cas: O(n)
+*/
+
     if (k.empty()) throw error(ClauStringBuit);
 
     nat h = hash_string(k, _mida);
@@ -232,5 +275,11 @@ Valor cataleg<Valor>::operator[](const string &k) const {
 
 template <typename Valor>
 nat cataleg<Valor>::quants() const noexcept {
+/*
+Pre: Cert
+Post: Retorna el nombre d’entrades del catàleg.
+Cost: O(1)
+*/
+
     return _quants;
 }

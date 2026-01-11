@@ -1,4 +1,16 @@
-// contenidor.rep
+// Representació de la classe contenidor
+//
+// Un contenidor es representa mitjançant:
+//  - una matrícula (string)
+//  - una longitud (10, 20 o 30)
+//
+// Aquesta representació és mínima i suficient, ja que tota la informació
+// necessària per a l’emplaçament dins la terminal es deriva d’aquests dos camps.
+//
+// Alternatives:
+//  - Codificar la longitud en nombre de places directament (1,2,3).
+//    S’ha descartat per mantenir coherència amb el problema (10,20,30 peus).
+//
 
 string _matricula;
 nat _longitud;

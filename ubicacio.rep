@@ -1,4 +1,22 @@
-// ubicacio.rep
+// Representació de la classe ubicacio
+//
+// Una ubicació representa una posició dins del magatzem de la terminal
+// mitjançant tres coordenades enters: filera, placa i pis.
+//
+// S’utilitzen també dues ubicacions especials:
+//  - (-1,  0,  0)  representa l’àrea d’espera
+//  - (-1, -1, -1)  representa una matrícula inexistent
+//
+// Aquesta representació permet:
+//  - Comparar ubicacions de manera totalment ordenada
+//  - Codificar estats especials sense estructures addicionals
+//
+// Alternatives possibles:
+//  - Usar un tipus enum per indicar ESTAT (magatzem / espera / inexistent)
+//    i tres enters només quan sigui magatzem.
+//  S’ha descartat perquè complica la representació i les comparacions.
+//
+// Cost en espai: O(1)
 
 int _filera;
 int _placa;

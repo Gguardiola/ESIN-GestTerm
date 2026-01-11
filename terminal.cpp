@@ -7,33 +7,89 @@ using util::nat;
 /* ===================== AUXILIARS ===================== */
 
 static bool es_espera(const ubicacio& u) noexcept {
+/*
+Pre: u és una ubicació qualsevol.
+Post: Retorna cert si i només si u representa l’àrea d’espera.
+Cost: O(1).
+*/
+
   return (u.filera() == -1 && u.placa() == 0 && u.pis() == 0);
 }
 
 static bool es_inexistent(const ubicacio& u) noexcept {
+/*
+Pre: u és una ubicació qualsevol.
+Post: Retorna cert si i només si u representa un contenidor inexistent.
+Cost: O(1).
+*/
+
   return (u.filera() == -1 && u.placa() == -1 && u.pis() == -1);
 }
 
 static ubicacio u_espera() {
+/*
+Pre: Cert.
+Post: Retorna la ubicació canònica que representa l’àrea d’espera.
+Cost: O(1).
+*/
+
   return ubicacio(-1, 0, 0);
 }
 
 static ubicacio u_inexistent() {
+/*
+Pre: Cert.
+Post: Retorna la ubicació canònica que representa un contenidor inexistent.
+Cost: O(1).
+*/
+
   return ubicacio(-1, -1, -1);
 }
 
 static nat len10_from_long(nat l) {
+/*
+Pre: l > 0.
+Post: Retorna el nombre de places de 10 unitats necessàries per emmagatzemar
+      un contenidor de longitud l.
+Cost: O(1).
+*/
+
   return l / 10;
 }
 
 /* ===== Helpers sobre dades "planes" (NO toquen privats) ===== */
 
 static bool suport(string*** mag, nat i, nat j, nat k) {
+/*
+Pre:
+  mag representa un magatzem vàlid.
+  0 ≤ i < n, 0 ≤ j < m, 0 ≤ k < h.
+Post:
+  Retorna cert si la plaça (i,j,k) té suport (és al pis 0 o hi ha un contenidor just a sota).
+Cost:
+  O(1).
+*/
+
   if (k == 0) return true;
   return !mag[i][j][k - 1].empty();
 }
 
 static bool cabe(string*** mag, nat m, nat h, nat i, nat j, nat k, nat len10) {
+/*
+Pre:
+  mag representa un magatzem vàlid de dimensions m × h.
+  0 ≤ i < n, 0 ≤ j < m, 0 ≤ k < h.
+  len10 > 0.
+Post:
+  Retorna cert si un contenidor de llargada len10 pot col·locar-se començant
+  a la posició (i,j,k) complint:
+   - no surt de la filera,
+   - totes les places estan lliures,
+   - totes tenen suport.
+Cost:
+  O(len10).
+*/
+
   if (j + len10 > m) return false;
 
   nat x = 0;
@@ -48,22 +104,27 @@ static bool cabe(string*** mag, nat m, nat h, nat i, nat j, nat k, nat len10) {
 static bool lliure_fit(string*** mag, nat n, nat m, nat h, nat len10, nat& oi, nat& oj, nat& ok)
 {
 // ESTRATEGIA LLIURE
-// cost: O(m*m*h)
-// Pre: 
-//  - mag representa un magatzem vàlid de dimensions n × m × h.
-//  - len10 > 0.
+//
+// Pre:
+//  - mag representa un magatzem vàlid de dimensions n * m * h.
+//  - llargada (len10) > 0.
 //  - oi, oj, ok són variables on es poden escriure coordenades.
 // Post:
-//  - Si existeix en el magatzem un conjunt de len10 posicions consecutives
-//    lliures, en una mateixa filera i pis, i totes amb suport adequat,
-//    la funció retorna true i (oi, oj, ok) conté la ubicació inicial d’un
-//    d’aquests conjunts segons l’estratègia LLIURE.
-//  - L’estratègia LLIURE tria el conjunt lliure que deixa el mínim espai
-//    lliure sobrant (best-fit); en cas d’empat, es tria el que està situat
-//    en un pis més baix, després en una filera menor i, finalment, en una
-//    posició més a l’esquerra.
-//  - Si no existeix cap conjunt vàlid de len10 posicions, la funció retorna
+//  - Si existeix en el magatzem un conjunt de "llargada" posicions consecutives
+//    lliures, situades en una mateixa filera i en un mateix pis, i totes amb suport,
+//    la funció retorna true i (oi, oj, ok) conté la ubicació inicial del conjunt
+//    escollit segons l’estratègia LLIURE.
+//  - L’estratègia LLIURE tria, entre tots els conjunts lliures vàlids, aquell que
+//    deixa menys espai lliure no utilitzat al mateix forat, amb l’objectiu de
+//    reduir la fragmentació del magatzem. En cas d’empat, es prioritzen els conjunts
+//    situats en pisos més baixos, després en fileres menors i, finalment, en
+//    posicions més a l’esquerra.
+//  - Si no existeix cap conjunt vàlid de "llargada" posicions, la funció retorna
 //    false i el valor de (oi, oj, ok) no està definit.
+// Cost:
+//  - O(n*m*h), ja que s’exploren totes les posicions del magatzem per identificar
+//    els forats lliures i seleccionar el més adequat segons l’estratègia LLIURE.
+
 
   bool found = false;
   nat best_waste = 0;
@@ -136,6 +197,15 @@ static bool first_fit(string*** mag, nat n, nat m, nat h, nat len10,
 }
 
 static void write_footprint(string*** mag, nat i, nat j, nat k, nat len10, const string& mat) {
+/*
+Pre:
+  Les len10 places consecutives començant a (i,j,k) són lliures i vàlides.
+Post:
+  Escriu la matrícula mat en aquestes len10 places.
+Cost:
+  O(len10).
+*/
+
   nat x = 0;
   while (x < len10) {
     mag[i][j + x][k] = mat;
@@ -144,6 +214,15 @@ static void write_footprint(string*** mag, nat i, nat j, nat k, nat len10, const
 }
 
 static void clear_footprint(string*** mag, nat i, nat j, nat k, nat len10) {
+/*
+Pre:
+  Les len10 places començant a (i,j,k) estan ocupades pel mateix contenidor.
+Post:
+  Les deixa buides.
+Cost:
+  O(len10).
+*/
+
   nat x = 0;
   while (x < len10) {
     mag[i][j + x][k].clear();
@@ -152,6 +231,17 @@ static void clear_footprint(string*** mag, nat i, nat j, nat k, nat len10) {
 }
 
 static bool te_alguna_cosa_a_sobre(string*** mag, nat h, nat i, nat j, nat k, nat len10) {
+/*
+Pre:
+  mag és un magatzem vàlid.
+  (i,j,k) és la ubicació inicial d’un contenidor de llargada len10.
+Post:
+  Retorna cert si existeix algun contenidor situat a sobre de qualsevol
+  de les seves places.
+Cost:
+  O(len10*h).
+*/
+
   if (k + 1 >= h) return false;
 
   nat x = 0;
@@ -176,6 +266,25 @@ static void processa_espera_impl(terminal::estrategia est,
                                  nat n, nat m, nat h,
                                  nat& ops)
 {
+/*
+Pre:
+  - mag, espera, on i longs són estructures consistents.
+  - est indica l’estratègia activa.
+Post:
+  Intenta moure contenidors de l’àrea d’espera al magatzem fins que
+  ja no sigui possible col·locar-ne cap més.
+
+  FIRST_FIT:
+    - L’àrea d’espera es processa en ordre LIFO (des del final).
+  LLIURE:
+    - L’àrea d’espera es processa en ordre FIFO (des de l’inici).
+
+  Cada moviment magatzem ← espera incrementa ops en una unitat.
+Cost:
+  En el pitjor cas:
+    O([n contenidors] * n* m*h)
+*/
+
   if (est == terminal::estrategia::FIRST_FIT) {
     bool mogut = true;
     while (mogut) {
@@ -188,7 +297,7 @@ static void processa_espera_impl(terminal::estrategia est,
 
         if (!longs.existeix(mat)) continue;
         nat L = longs[mat];
-        if (L == 0) continue; // marcat com inexistent
+        if (L == 0) continue;
         nat need = len10_from_long(L);
 
         nat pi = 0, pj = 0, pk = 0;
@@ -197,9 +306,9 @@ static void processa_espera_impl(terminal::estrategia est,
           on.assig(mat, ubicacio((int)pi, (int)pj, (int)pk));
 
           it = espera.erase(it);
-          ++ops;      // espera -> magatzem
+          ++ops;
           mogut = true;
-          break;      // recomençar des del final
+          break;
         }
       }
     }
@@ -243,6 +352,16 @@ terminal::terminal(nat n, nat m, nat h, estrategia st)
     _espera(),
     _ops(0)
 {
+/*
+Pre:
+  n > 0, m > 0, 0 < h ≤ HMAX, st és una estratègia vàlida.
+Post:
+  Crea una terminal buida amb magatzem n × m × h,
+  catàlegs buits, àrea d’espera buida i comptador d’operacions a 0.
+Cost:
+  O(n*m*h).
+*/
+
   if (n == 0) throw error(NumFileresIncorr);
   if (m == 0) throw error(NumPlacesIncorr);
   if (h == 0 || h > HMAX) throw error(AlcadaMaxIncorr);
@@ -362,6 +481,15 @@ nat terminal::ops_grua() const noexcept { return _ops; }
 /* ===================== CONSULTES ===================== */
 
 ubicacio terminal::on(const string &m) const noexcept {
+/*
+Pre: m és una matrícula qualsevol.
+Post:
+  Retorna la ubicació de m si existeix i no és inexistent,
+  o bé la ubicació inexistent en cas contrari.
+Cost:
+  O(1).
+*/
+
   if (_on.existeix(m)) {
     ubicacio u = _on[m];
     if (es_inexistent(u)) return u_inexistent();
@@ -371,6 +499,17 @@ ubicacio terminal::on(const string &m) const noexcept {
 }
 
 nat terminal::longitud(const string &m) const {
+/*
+Pre:
+  Existeix un contenidor amb matrícula m.
+Post:
+  Retorna la seva longitud.
+Excepcions:
+  MatriculaInexistent si no existeix.
+Cost:
+  O(1).
+*/
+
   if (!_on.existeix(m)) throw error(MatriculaInexistent);
   ubicacio u = _on[m];
   if (es_inexistent(u)) throw error(MatriculaInexistent);
@@ -382,6 +521,18 @@ nat terminal::longitud(const string &m) const {
 }
 
 void terminal::contenidor_ocupa(const ubicacio &u, string &m) const {
+/*
+Pre:
+  u és una ubicació dins del magatzem.
+Post:
+  Assigna a m la matrícula del contenidor que ocupa u
+  (pot ser cadena buida).
+Excepcions:
+  UbicacioNoMagatzem si u no és una ubicació del magatzem.
+Cost:
+  O(1).
+*/
+
   int i = u.filera();
   int j = u.placa();
   int k = u.pis();
@@ -394,11 +545,29 @@ void terminal::contenidor_ocupa(const ubicacio &u, string &m) const {
 }
 
 void terminal::area_espera(list<string> &l) const noexcept {
+/*
+Pre: Cert.
+Post:
+  Copia totes les matrícules de l’àrea d’espera a l,
+  ordenades creixentment.
+Cost:
+  O(n log n), on n és el nombre de contenidors en espera.
+*/
+
   l = _espera;
   l.sort();
 }
 
 nat terminal::fragmentacio() const noexcept {
+/*
+Pre: Cert.
+Post:
+  Retorna el nombre de forats de mida exactament 1
+  (una sola plaça lliure amb suport).
+Cost:
+  O(n*m*h).
+*/
+
   nat frag = 0;
 
   nat i = 0;
@@ -430,6 +599,22 @@ nat terminal::fragmentacio() const noexcept {
 /* ===================== INSERIR ===================== */
 
 void terminal::insereix_contenidor(const contenidor &c) {
+/*
+Pre:
+  c és un contenidor amb matrícula i longitud vàlides.
+Post:
+  Si es pot col·locar al magatzem segons l’estratègia,
+  s’insereix i s’incrementa ops.
+
+  En cas contrari, passa a l’àrea d’espera.
+
+  A continuació es processa l’àrea d’espera.
+Excepcions:
+  MatriculaDuplicada si ja existeix un contenidor amb la mateixa matrícula.
+Cost:
+  O(n*m*h) + cost(processa_espera_impl).
+*/
+
   const string m = c.matricula();
   const nat l = c.longitud();
   const nat need = len10_from_long(l);
@@ -465,11 +650,26 @@ void terminal::insereix_contenidor(const contenidor &c) {
 /* ===================== RETIRAR ===================== */
 
 void terminal::retira_contenidor(const string &m) {
+/*
+Pre:
+  Existeix un contenidor amb matrícula m.
+Post:
+  Si m és a l’àrea d’espera:
+    - S’elimina (0 operacions de grua).
+  Si m és al magatzem:
+    - Es mouen a l’àrea d’espera tots els contenidors que el bloquegen.
+    - Es retira m.
+    - Es processen els contenidors en espera.
+
+  El contenidor es marca com inexistent.
+Excepcions:
+  MatriculaInexistent si m no existeix.
+*/
+
   if (!_on.existeix(m)) throw error(MatriculaInexistent);
   ubicacio u = _on[m];
   if (es_inexistent(u)) throw error(MatriculaInexistent);
 
-  // Si està a espera: eliminar (0 ops), però NO borrem del cataleg: marquem inexistent
   if (es_espera(u)) {
     auto it = _espera.begin();
     while (it != _espera.end()) {
@@ -480,8 +680,6 @@ void terminal::retira_contenidor(const string &m) {
     _longs.assig(m, 0);
     return;
   }
-
-  // està al magatzem
   nat li = (nat)u.filera();
   nat lj = (nat)u.placa();
   nat lk = (nat)u.pis();
@@ -490,7 +688,6 @@ void terminal::retira_contenidor(const string &m) {
   if (Lm == 0) throw error(MatriculaInexistent);
   nat need = len10_from_long(Lm);
 
-  // Cols afectades (cierre)
   bool* col = new bool[_m];
   nat jj = 0;
   while (jj < _m) { col[jj] = false; ++jj; }
@@ -498,7 +695,6 @@ void terminal::retira_contenidor(const string &m) {
   nat x = 0;
   while (x < need) { col[lj + x] = true; ++x; }
 
-  // Llista de matrícules a moure
   nat maxmv = _on.quants();
   if (maxmv == 0) maxmv = 1;
   string* mv = new string[maxmv];

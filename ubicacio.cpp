@@ -1,6 +1,15 @@
 #include "ubicacio.hpp"
 
 ubicacio::ubicacio(int i, int j, int k) {
+/*
+Pre:
+  i,j,k son enters que representen una ubicació possible.
+Post:
+  Si (i,j,k) és una ubicació vàlida (magatzem, espera o inexistent),
+  crea l’objecte amb aquests valors. En cas contrari, llença error(UbicacioIncorrecta).
+Cost:
+  O(1)
+*/
     bool ok =
         (i >= 0 && j >= 0 && k >= 0) ||
         (i == -1 && j == 0 && k == 0) ||
@@ -26,10 +35,23 @@ ubicacio& ubicacio::operator=(const ubicacio &u) {
 }
 
 ubicacio::~ubicacio() noexcept {}
+/*
+Pre: Cert
+Post: Retorna el valor de la filera (resp. placa, pis) de la ubicació.
+Cost: O(1)
+*/
 
 int ubicacio::filera() const noexcept { return _filera; }
 int ubicacio::placa() const noexcept { return _placa; }
 int ubicacio::pis() const noexcept { return _pis; }
+/*
+Pre: Cert
+Post:
+  Defineix un ordre total entre ubicacions, comparant primer filera,
+  després placa i finalment pis.
+Cost:
+  O(1)
+*/
 
 bool ubicacio::operator==(const ubicacio &u) const noexcept {
     return _filera == u._filera &&

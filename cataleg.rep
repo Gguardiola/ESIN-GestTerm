@@ -1,3 +1,25 @@
+// Representació del catàleg
+//
+// El catàleg s’implementa com una taula hash amb:
+//  - adreçament obert (linear probing)
+//  - marques d’esborrat (tombstones)
+//  - rehash quan el factor de càrrega supera aproximadament 0.7
+//
+// Cada entrada conté:
+//  - una clau (string)
+//  - un punter al valor associat
+//  - dos booleans: ocupada i esborrada
+//
+// Aquesta representació permet:
+//  - Cerca, inserció i eliminació en temps mitjà O(1)
+//  - Evitar moviments de memòria pesats en el rehash, ja que es mouen punters
+//
+// Alternatives:
+//  - Arbre equilibrat (O(log n)): més lent
+//  - Hash amb chaining: més memòria i més punters
+//
+
+
 struct entrada {
   string clau;
   Valor* valor;

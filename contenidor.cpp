@@ -2,6 +2,14 @@
 
 // Constructor
 contenidor::contenidor(const string &m, nat l) {
+/*
+Pre:
+  m és una cadena no buida formada per lletres majúscules i dígits.
+Post:
+  Es crea un contenidor amb matrícula m i longitud l.
+  Si els paràmetres no són vàlids, llença l’error corresponent.
+*/
+
     if (m.empty()) throw error(MatriculaIncorrecta);
     for (char c : m) {
         if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')))
@@ -27,7 +35,10 @@ contenidor& contenidor::operator=(const contenidor &c) {
 }
 
 contenidor::~contenidor() noexcept {}
-
+/*
+Pre: Cert
+Post: Retorna la matrícula (resp. longitud) del contenidor.
+*/
 nat contenidor::longitud() const noexcept { return _longitud; }
 string contenidor::matricula() const noexcept { return _matricula; }
 
